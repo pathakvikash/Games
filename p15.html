@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15 Puzzle Game</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(4, 80px);
+            grid-template-rows: repeat(4, 80px);
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+
+        .cell {
+            border: 1px solid #000;
+            width: 80px;
+            height: 80px;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .cell-0 {
+            border: none;
+            background-color: transparent;
+        }
+
+        .cell:hover {
+            background-color: #ddd;
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #btn {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        #btn:hover {
+            background-color: #0056b3;
+        }
+
+        .info {
+            margin: 10px 0;
+            font-size: 18px;
+        }
+
+        @media (max-width: 600px) {
+            #board {
+                grid-template-columns: repeat(4, 60px);
+                grid-template-rows: repeat(4, 60px);
+            }
+
+            .cell {
+                width: 60px;
+                height: 60px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="board"></div>
+        <div id="controls">
+            <div class="info">Moves: <span id="moves">0</span></div>
+            <div class="info">Time: <span id="time">0</span>s</div>
+            <div id="isSolvable"></div>
+            <button id="hint-btn">Hint</button>
+            <button id="btn">Restart</button>
+        </div>
+    </div>
+
+    <script>
+        let canva = document.getElementById('container');
+        let btn = document.getElementById('btn');
+        let grid = document.getElementById('board');
+        let hintbtn = document.getElementById('hint-btn');
+        let array = [];
+        let emptyRow, emptyCol;
+        let moves = 0;
+        let startTime, interval;
+
+        function startTimer() {
+            startTime = Date.now();
+            interval = setInterval(updateTime, 1000);
+        }
+
+        function updateTime() {
+            const currentTime = Date.now();
+            const elapsedTime = Math.floor((currentTime - startTime) / 1000);
+            document.getElementById('time').textContent = `Time: ${elapsedTime}s`;
+        }
+
+        function isSorted(grid) {
+            let expectedValue = 1;
+            for (let i = 0; i < grid.length; i++) {
+                for (let j = 0; j < grid[i].length; j++) {
+                    if (grid[i][j] !== 0 && grid[i][j] !== expectedValue) {
+                        return false;
+                    }
+                    expectedValue++;
+                }
+            }
+            return true;
+        }
+
+        //  to initialize and draw the board
+        function draw() {
+            grid.innerHTML = '';
+            let n = 4;
+
+            // generate a sequential 16-puzzle with the missing tile
+            array = [];
+            for (let i = 0; i < n; i++) {
+                array.push([]);
+                for (let j = 0; j < n; j++) {
+                    let value = i * n + j + 1;
+                    if (value === n * n) {
+                        value = 0;
+                        emptyRow = i;
+                        emptyCol = j;
+                    }
+                    array[i][j] = value;
+                }
+            }
+            // shuffle(array);
+            let message = isSolvable(array) ? 'Puzzle is solvable' : 'Puzzle is not solvable';
+            document.getElementById('isSolvable').textContent = message;
+
+            // create the board
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    let cell = document.createElement('div');
+                    cell.className = `cell cell-${array[i][j]}`;
+                    cell.setAttribute('data-index', `${i},${j}`);
+                    cell.textContent = array[i][j] === 0 ? '' : array[i][j];
+                    grid.appendChild(cell);
+
+                    //  event listener to each cell
+                    cell.addEventListener('click', move);
+                }
+            }
+            moves = 0;
+            document.getElementById('moves').textContent = `Moves: ${moves}`;
+            startTimer();
+        }
+        // check if the puzzle is solvable
+        function isSolvable(matrix) {
+            let inversions = 0;
+            const n = matrix.length;
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    if (matrix[i][j] && matrix[i][j] > 0) {
+                        for (let k = j + 1; k < n; k++) {
+                            if (matrix[i][k] && matrix[i][j] > matrix[i][k]) {
+                                inversions++;
+                            }
+                        }
+                    }
+                }
+            }
+            return inversions % 2 === 0;
+        }
+        
+        function shuffle(array) {
+            const flatArray = array.flat();
+            for (let i = flatArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [flatArray[i], flatArray[j]] = [flatArray[j], flatArray[i]];
+            }
+            for (let i = 0; i < array.length; i++) {
+                for (let j = 0; j < array[i].length; j++) {
+                    array[i][j] = flatArray[i * array.length + j];
+                    if (array[i][j] === 0) {
+                        emptyRow = i;
+                        emptyCol = j;
+                    }
+                }
+            }
+        }
+
+        function validPos(row, emptyRow, col, emptyCol) {
+            if ((Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
+                (Math.abs(col - emptyCol) === 1 && row === emptyRow)) {
+                return true;
+            }
+            return false
+        }
+
+        // handle the move
+        function move(event) {
+            const cell = event.target;
+            const cellIndex = cell.getAttribute('data-index');
+            const [row, col] = cellIndex.split(',').map(Number);
+
+            // console.log(`Clicked cell: (${row}, ${col})`);
+            // console.log(`Empty cell: (${emptyRow}, ${emptyCol})`);
+
+            if (validPos(row, emptyRow, col, emptyCol)) {
+                // console.log('Cells are adjacent, proceeding with swap.');
+                swapValues(row, col, emptyRow, emptyCol);
+                [emptyRow, emptyCol] = [row, col];
+                moves++;
+                document.getElementById('moves').textContent = `Moves: ${moves}`;
+                updateUI();
+            } else {
+                console.log('Cells are not adjacent, no swap.');
+            }
+        }
+
+        //  swap values in the array and update the UI
+        function swapValues(row1, col1, row2, col2) {
+            // console.log(`Swapping values: (${row1}, ${col1}) <-> (${row2}, ${col2})`);
+            [array[row1][col1], array[row2][col2]] = [array[row2][col2], array[row1][col1]];
+        }
+
+        function solvePuzzle(matrix) {
+            const n = matrix.length;
+            const targetPosition = { x: n - 1, y: n - 1 }; // Target position for the blank tile
+            function findNextMove(currentPosition) {
+                const moves = [
+                    { x: currentPosition.x - 1, y: currentPosition.y }, // Move down
+                    { x: currentPosition.x + 1, y: currentPosition.y }, // Move up
+                    { x: currentPosition.x, y: currentPosition.y - 1 }, // Move right
+                    { x: currentPosition.x, y: currentPosition.y + 1 }, // Move left
+                ];
+
+                for (const move of moves) {
+                    if (
+                        move.x >= 0 &&
+                        move.x < n &&
+                        move.y >= 0 &&
+                        move.y < n &&
+                        matrix[move.x][move.y] !== 0
+                    ) {
+                        const tileToMove = matrix[move.x][move.y];
+                        const blankTile = matrix[currentPosition.x][currentPosition.y];
+
+                        if (tileToMove !== blankTile && tileToMove < blankTile) {
+                            return move;
+                        }
+                    }
+                }
+
+                // No valid move found
+                return null;
+            }
+
+
+            function backtrack(currentPosition) {
+                if (
+                    currentPosition.x === targetPosition.x &&
+                    currentPosition.y === targetPosition.y
+                ) {
+                    return true; // Puzzle solved
+                }
+
+                const nextMove = findNextMove(currentPosition);
+                if (nextMove) {
+                    const { x, y } = nextMove;
+                    const tileToMove = matrix[x][y];
+
+                    matrix[x][y] = matrix[currentPosition.x][currentPosition.y];
+                    matrix[currentPosition.x][currentPosition.y] = tileToMove;
+
+                    if (backtrack({ x, y })) {
+                        return true;
+                    } else {
+                        matrix[x][y] = tileToMove;
+                        matrix[currentPosition.x][currentPosition.y] = matrix[x][y];
+                    }
+                }
+
+                return false;
+            }
+
+            const freePosition = findNextMove({ x: 0, y: 0 });
+            console.log(freePosition, 'nextmove <==')
+
+            if (freePosition) {
+                backtrack(freePosition);
+                return { x: freePosition.x, y: freePosition.y };
+            }
+
+            // Puzzle cannot be solved
+            return null;
+        }
+        function findZeroPosition(puzzle) {
+            for (let i = 0; i < puzzle.length; i++) {
+                for (let j = 0; j < puzzle[i].length; j++) {
+                    if (puzzle[i][j] === 0) {
+                        return [i, j];
+                    }
+                }
+            }
+            return null;
+        }
+        function updateUI() {
+            for (let i = 0; i < array.length; i++) {
+                for (let j = 0; j < array[i].length; j++) {
+                    const cell = document.querySelector(`[data-index="${i},${j}"]`);
+                    cell.textContent = array[i][j] === 0 ? '' : array[i][j];
+                    cell.className = `cell cell-${array[i][j]}`;
+                }
+            }
+        }
+
+        // Initialize the game
+        draw();
+
+        // Restart button functionality
+        btn.addEventListener('click', () => {
+            clearInterval(interval);
+            draw();
+        });
+
+
+        function getValidMoves(pos, grid) {
+            const [x, y] = pos;
+            const moves = [];
+
+            if (x > 0) moves.push([x - 1, y, 'up']);
+            if (x < grid.length - 1) moves.push([x + 1, y, 'down']);
+            if (y > 0) moves.push([x, y - 1, 'left']);
+            if (y < grid[0].length - 1) moves.push([x, y + 1, 'right']);
+
+            return moves;
+        }
+
+        function findNextTarget(grid) {
+            let expectedValue = 1;
+            for (let i = 0; i < grid.length; i++) {
+                for (let j = 0; j < grid[i].length; j++) {
+                    if (grid[i][j] !== 0 && grid[i][j] !== expectedValue) {
+                        return [i, j];
+                    }
+                    expectedValue++;
+                }
+            }
+            return null;
+        }
+
+        hintbtn.addEventListener('click', () => {
+            let directions = [];
+
+
+            function stepsToMoveTarget(targetPos, zeroPos) {
+                return Math.abs(targetPos[0] - zeroPos[0]) + Math.abs(targetPos[1] - zeroPos[1]);
+            }
+
+            let zeroPos = findZeroPosition(array);
+            let targetPos = findNextTarget(array);
+
+            console.log(stepsToMoveTarget(targetPos, zeroPos), 'steps to move target');
+            if (!isSorted(array) && targetPos) {
+                let validMoves = getValidMoves(zeroPos, array);
+                for (let move of validMoves) {
+                    const [newX, newY, direction] = move;
+                    // console.log(newX, newY, 'X and Y', direction, 'directions');
+                    const steps = stepsToMoveTarget(targetPos, [newX, newY]);
+
+                    directions.push({ direction, steps });
+                }
+
+                directions.sort((a, b) => a.steps - b.steps); // Sort directions by the number of steps
+            }
+            updateUI();
+        });
+
+
+    </script>
+
+</body>
+
+</html>
